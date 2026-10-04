@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpt6-luna-router
+  namespace: ai-gateway
+  labels:
+    app: gpt6-luna
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: gpt6-luna
+  template:
+    metadata:
+      labels:
+        app: gpt6-luna
+    spec:
+      containers:
+        - name: luna-router
+          image: ghcr.io/pradeeptalari14/gpt-6-luna-router:latest
+          command: ["python3", "luna_decisions_router.py"]
+          resources:
+            limits:
+              memory: 2Gi
+              cpu: "2"
+            requests:
+              memory: 512Mi
+              cpu: "500m"
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gpt6-luna-hpa
+  namespace: ai-gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gpt6-luna-router
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
